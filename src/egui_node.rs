@@ -186,20 +186,20 @@ impl Node for EguiNode {
 
         let mut shapes = Vec::new();
         std::mem::swap(&mut egui_shapes.shapes, &mut shapes);
-        let egui_paint_jobs = egui_context.ctx.tessellate(shapes);
+        let egui_clipped_meshes = egui_context.ctx.tessellate(shapes);
 
         let mut vertex_buffer = Vec::<u8>::new();
         let mut index_buffer = Vec::new();
         let mut draw_commands = Vec::new();
         let mut index_offset = 0;
 
-        for (rect, triangles) in &egui_paint_jobs {
+        for clipped_mesh in &egui_clipped_meshes {
             let texture_handle = egui_context
                 .egui_textures
-                .get(&triangles.texture_id)
+                .get(&clipped_mesh.1.texture_id)
                 .cloned();
 
-            for vertex in &triangles.vertices {
+            for vertex in &clipped_mesh.1.vertices {
                 vertex_buffer.extend_from_slice([vertex.pos.x, vertex.pos.y].as_bytes());
                 vertex_buffer.extend_from_slice([vertex.uv.x, vertex.uv.y].as_bytes());
                 vertex_buffer.extend_from_slice(
@@ -212,18 +212,18 @@ impl Node for EguiNode {
                         .as_bytes(),
                 );
             }
-            let indices_with_offset = triangles
+            let indices_with_offset = clipped_mesh.1
                 .indices
                 .iter()
                 .map(|i| i + index_offset)
                 .collect::<Vec<_>>();
             index_buffer.extend_from_slice(indices_with_offset.as_slice().as_bytes());
-            index_offset += triangles.vertices.len() as u32;
+            index_offset += clipped_mesh.1.vertices.len() as u32;
 
             draw_commands.push(DrawCommand {
-                vertices_count: triangles.indices.len(),
+                vertices_count: clipped_mesh.1.indices.len(),
                 texture_handle,
-                clipping_zone: *rect,
+                clipping_zone: clipped_mesh.0,
             });
         }
 
